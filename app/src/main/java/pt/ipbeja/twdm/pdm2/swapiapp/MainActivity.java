@@ -8,9 +8,12 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.google.android.material.resources.TextAppearance;
 
 import java.io.IOException;
 import java.util.List;
@@ -18,137 +21,80 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
     private String firstRequest = "https://swapi.dev/api/people/?page=1&format=json";
     private PersonListAdapter adapter;
-    private String next;
-    private String previous;
     private Context context;
-    private TextView textViewPageNumber;
-    private Button buttonPrevious;
-    private Button buttonNext;
+    private List<Person> persons;
+    private String next;
+    private TextView textView;
+    private String pageNumber;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         this.context = this;
         setContentView(R.layout.activity_main);
-
-        this.textViewPageNumber = findViewById(R.id.textViewPageNumber);
-        this.buttonPrevious = findViewById(R.id.buttonPrevious);
-        this.buttonNext = findViewById(R.id.buttonNext);
-
+        this.textView = findViewById(R.id.textViewPageNumber);
 
         RecyclerView recyclerView = findViewById(R.id.recyclerViewPersons);
         adapter = new PersonListAdapter();
-        RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(context);
+        LinearLayoutManager layoutManager = new LinearLayoutManager(context);
         recyclerView.setAdapter(adapter);
         recyclerView.setLayoutManager(layoutManager);
 
         BackgroundTasks.run(new Runnable() {
             @Override
             public void run() {
-                APIResponse apiResponse = null;
                 try {
-                    String pageNumber = DataSource.getPageNumber(firstRequest);
-                    apiResponse = DataSource.getFromURL(firstRequest);
-                    List<Person> persons = apiResponse.getResults();
+                    APIResponse apiResponse = DataSource.getFromURL(firstRequest);
+                    pageNumber = DataSource.getPageNumber(firstRequest);
+                    persons = apiResponse.getResults();
                     next = apiResponse.getNext();
-                    previous = apiResponse.getPrevious();
-
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            buttonNext.setEnabled(true);
-                            buttonPrevious.setEnabled(true);
-                            if(previous == null) buttonPrevious.setEnabled(false);
-                            textViewPageNumber.setText(String.format("Page: %s", pageNumber));
-                            adapter.updateData(persons);
-                        }
-                    });
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-            }
-        });
-    }
-
-    public void onNextClick(View view) {
-        BackgroundTasks.run(new Runnable() {
-            @Override
-            public void run() {
-                APIResponse apiResponse = null;
-                try {
-                    if (next == null){
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                Toast.makeText(context,
-                                        "There is no next",
-                                        Toast.LENGTH_SHORT).show();
-                            }
-                        });
-                        return;
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        textView.setText(pageNumber);
+                        adapter.updateData(persons);
                     }
-                    String pageNumber = DataSource.getPageNumber(next);
-
-                    apiResponse = DataSource.getFromURL(next);
-                    List<Person> persons = apiResponse.getResults();
-                    next = apiResponse.getNext();
-                    previous = apiResponse.getPrevious();
-
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            buttonNext.setEnabled(true);
-                            buttonPrevious.setEnabled(true);
-                            if(next == null) buttonNext.setEnabled(false);
-                            textViewPageNumber.setText(String.format("Page: %s", pageNumber));
-                            adapter.updateData(persons);
-                        }
-                    });
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                });
             }
         });
-    }
 
-    public void onPreviousClick(View view) {
-        BackgroundTasks.run(new Runnable() {
+
+        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
-            public void run() {
-                APIResponse apiResponse = null;
-                try {
-                    if (previous == null) {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                Toast.makeText(context,
-                                        "There is no previous",
-                                        Toast.LENGTH_SHORT).show();
-                            }
-                        });
-                        return;
-                    }
-                    String pageNumber = DataSource.getPageNumber(previous);
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
 
-                    apiResponse = DataSource.getFromURL(previous);
-                    List<Person> persons = apiResponse.getResults();
-                    next = apiResponse.getNext();
-                    previous = apiResponse.getPrevious();
+                int visibleItemCount = layoutManager.getChildCount();
+                int totalItemCount = layoutManager.getItemCount();
+                int pastVisibleItems = layoutManager.findFirstVisibleItemPosition();
 
-                    runOnUiThread(new Runnable() {
+                if (pastVisibleItems + visibleItemCount >= totalItemCount) {
+                    BackgroundTasks.run(new Runnable() {
                         @Override
                         public void run() {
-                            buttonNext.setEnabled(true);
-                            buttonPrevious.setEnabled(true);
-                            if(previous == null) buttonPrevious.setEnabled(false);
-                            textViewPageNumber.setText(String.format("Page: %s", pageNumber));
-                            adapter.updateData(persons);
+                            if(next == null) return;
+                            pageNumber = DataSource.getPageNumber(next);
+                            try {
+                                APIResponse apiResponse = DataSource.getFromURL(next);
+                                persons = apiResponse.getResults();
+                                next = apiResponse.getNext();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    textView.setText(pageNumber);
+                                    adapter.insertData(persons);
+                                }
+                            });
                         }
                     });
-                } catch (IOException e) {
-                    e.printStackTrace();
                 }
             }
         });
     }
+
 }

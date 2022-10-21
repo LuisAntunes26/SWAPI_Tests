@@ -21,7 +21,8 @@ public class DataSource {
         JsonPlaceHolderAPI jsonPlaceHolderAPI = retrofit.create(JsonPlaceHolderAPI.class);
         Call<APIResponse> call = jsonPlaceHolderAPI.getPersonsFromPageNumber(pageNumber, "json");
 
-        return call.execute().body();
+        APIResponse apiResponse = call.execute().body();
+        return apiResponse;
     }
 
 

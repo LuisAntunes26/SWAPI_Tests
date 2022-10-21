@@ -39,6 +39,12 @@ public class PersonListAdapter extends RecyclerView.Adapter<PersonListAdapter.Pe
         notifyDataSetChanged();
     }
 
+    public void insertData(List<Person> persons){
+        int previousMax = this.persons.size();
+        this.persons.addAll(persons);
+        int currentMax = this.persons.size();
+        notifyItemRangeChanged(previousMax, currentMax);
+    }
     @Override
     public int getItemCount() {
         return persons.size();
